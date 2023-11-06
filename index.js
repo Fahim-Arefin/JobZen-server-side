@@ -33,11 +33,20 @@ app.get("/", (req, res) => {
   res.send("this is homepage");
 });
 
-// get all jobs
+// get all jobs or some jobs of specific user
 app.get("/jobs", async (req, res) => {
   try {
-    const Jobs = await Job.find({});
-    res.send(Jobs);
+    const { id } = req.query;
+    console.log(id);
+    // all users all data
+    if (!id) {
+      const Jobs = await Job.find({});
+      res.send(Jobs);
+    } else {
+      //one users all data
+      const Jobs = await Job.find({ authorId: id });
+      res.send(Jobs);
+    }
   } catch (error) {
     res.send(error);
   }
