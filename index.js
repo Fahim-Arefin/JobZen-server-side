@@ -40,11 +40,13 @@ app.get("/jobs", async (req, res) => {
     console.log(id);
     // all users all data
     if (!id) {
-      const Jobs = await Job.find({});
+      const Jobs = await Job.find({}).sort({ jobPostingDate: -1 });
       res.send(Jobs);
     } else {
       //one users all data
-      const Jobs = await Job.find({ authorId: id });
+      const Jobs = await Job.find({ authorId: id }).sort({
+        jobPostingDate: -1,
+      });
       res.send(Jobs);
     }
   } catch (error) {
@@ -70,6 +72,29 @@ app.post("/jobs", async (req, res) => {
     res.status(201).send(data);
   } catch (error) {
     console.log("Error Creation");
+    console.log(error);
+    res.send(error);
+  }
+});
+
+// update Job
+app.put("/jobs/:id", async (req, res) => {
+  const { id } = req.params;
+  const job = req.body;
+  const response = await Job.findByIdAndUpdate(id, job, {
+    runValidators: true,
+    new: true,
+  });
+  res.send(response);
+});
+
+// delete a job
+app.delete("/jobs/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    await Job.findByIdAndDelete(id);
+    res.send("Deleted Successfully");
+  } catch (error) {
     console.log(error);
     res.send(error);
   }
