@@ -43,6 +43,14 @@ app.get("/jobs", async (req, res) => {
   }
 });
 
+// get a Job
+app.get("/jobs/:id", async (req, res) => {
+  const { id } = req.params;
+  const data = await Job.findById(id);
+  // console.log(data);
+  res.send(data);
+});
+
 // add a job
 app.post("/jobs", async (req, res) => {
   try {
