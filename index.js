@@ -33,7 +33,17 @@ app.get("/", (req, res) => {
   res.send("this is homepage");
 });
 
-// all jobs
+// get all jobs
+app.get("/jobs", async (req, res) => {
+  try {
+    const Jobs = await Job.find({});
+    res.send(Jobs);
+  } catch (error) {
+    res.send(error);
+  }
+});
+
+// add a job
 app.post("/jobs", async (req, res) => {
   try {
     const body = req.body;
@@ -44,5 +54,6 @@ app.post("/jobs", async (req, res) => {
   } catch (error) {
     console.log("Error Creation");
     console.log(error);
+    res.send(error);
   }
 });
