@@ -40,7 +40,7 @@ app.get("/jobs", async (req, res) => {
   try {
     const { id } = req.query;
     // console.log(id);
-    // all users all data
+    // all users all job data
     if (!id) {
       const Jobs = await Job.find({}).sort({ jobPostingDate: -1 });
       res.send(Jobs);
@@ -137,6 +137,7 @@ app.post("/applications", async (req, res) => {
         const applicationData = await Application.save();
 
         // 5.push it to the job (only id will be stored)
+        job.jobApplicants = job.jobApplicants + 1;
         job.applicants.push(applicationData);
 
         // save the job
@@ -146,6 +147,50 @@ app.post("/applications", async (req, res) => {
     }
   } catch (error) {
     console.log(error);
+    res.send(error);
+  }
+});
+
+app.get("/applications", async (req, res) => {
+  try {
+    const { email } = req.query;
+    // all users all Application data
+    if (!email) {
+      const jobApplications = await JobApplication.find({}).sort({
+        createdAt: -1,
+      });
+      res.send(jobApplications);
+    } else {
+      let arr = [];
+      const jobs = await Job.find({}).populate("applicants");
+      for (let job of jobs) {
+        for (let applicant of job.applicants) {
+          if (applicant.applicantEmail === email) {
+            arr.push(job);
+          }
+        }
+      }
+      console.log(arr);
+
+      // remove dupplicate
+
+      // Create a Map to store unique objects based on the "id" property
+      const uniqueMap = new Map();
+
+      arr.forEach((obj) => {
+        if (!uniqueMap.has(obj._id)) {
+          uniqueMap.set(obj._id, obj);
+        }
+      });
+
+      // Convert the Map values back to an array
+      const uniqueArray = Array.from(uniqueMap.values());
+
+      console.log(uniqueArray);
+
+      res.send(uniqueArray.reverse());
+    }
+  } catch (error) {
     res.send(error);
   }
 });
