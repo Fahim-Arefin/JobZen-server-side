@@ -5,6 +5,8 @@ const mongoose = require("mongoose");
 require("dotenv").config();
 const port = process.env.PORT || 5000;
 const Job = require("./model/jobs");
+const JobApplication = require("./model/JobApplication");
+const util = require("./util/util");
 
 //connection with mongoose
 mongoose
@@ -37,7 +39,7 @@ app.get("/", (req, res) => {
 app.get("/jobs", async (req, res) => {
   try {
     const { id } = req.query;
-    console.log(id);
+    // console.log(id);
     // all users all data
     if (!id) {
       const Jobs = await Job.find({}).sort({ jobPostingDate: -1 });
@@ -94,6 +96,54 @@ app.delete("/jobs/:id", async (req, res) => {
     const { id } = req.params;
     await Job.findByIdAndDelete(id);
     res.send("Deleted Successfully");
+  } catch (error) {
+    console.log(error);
+    res.send(error);
+  }
+});
+
+// Application create route
+app.post("/applications", async (req, res) => {
+  /*
+    steps: 
+    --------
+    1.Find the jobs based on jobId given in body
+    2.Checks if it is my job or not 
+    3.Checks if deadline is over or not
+    4.Create the post
+    5.push it to the job (only id will be stored)
+    6.save the job
+  */
+
+  try {
+    const body = req.body;
+    const { id } = req.query;
+
+    //1. Find the jobs based on jobId given in body
+    const job = await Job.findById(body.jobId);
+    //2. checks if it is my job or not
+    if (job.authorId === id) {
+      res.json({ message: "Can't Apply your created job" });
+    } else {
+      const isExpired = util.isApplicationDeadlineExpired(
+        job.applicationDeadline
+      );
+      //3. check if deadline is over or not
+      if (isExpired) {
+        res.json({ message: "The application deadline has expired." });
+      } else {
+        // 4.Create the post
+        const Application = new JobApplication(body);
+        const applicationData = await Application.save();
+
+        // 5.push it to the job (only id will be stored)
+        job.applicants.push(applicationData);
+
+        // save the job
+        const jobData = await job.save();
+        res.send(jobData);
+      }
+    }
   } catch (error) {
     console.log(error);
     res.send(error);

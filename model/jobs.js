@@ -42,6 +42,7 @@ const citySchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  applicants: [{ type: mongoose.Schema.Types.ObjectId, ref: "Application" }],
 });
 
 const Job = mongoose.model("Job", citySchema);
