@@ -8,6 +8,9 @@ const Job = require("./model/jobs");
 const JobApplication = require("./model/JobApplication");
 const util = require("./util/util");
 
+const jwt = require("jsonwebtoken");
+const cookieParser = require("cookie-parser");
+
 //connection with mongoose
 mongoose
   .connect(
@@ -22,8 +25,29 @@ mongoose
   });
 
 //middleware
-app.use(cors());
+app.use(
+  cors({
+    origin: ["http://localhost:5173"],
+    credentials: true,
+  })
+);
 app.use(express.json());
+app.use(cookieParser());
+
+// Varify Toke middleware
+const varifyToken = (req, res, next) => {
+  const token = req.cookies.token;
+  if (!token) {
+    return res.status(401).send({ message: "Unauthorized Access" });
+  }
+  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+    if (err) {
+      return res.status(401).send({ message: "Unauthorized Access" });
+    }
+    req.user = decoded;
+    next();
+  });
+};
 
 //server
 app.listen(port, () => {
@@ -35,21 +59,71 @@ app.get("/", (req, res) => {
   res.send("this is homepage");
 });
 
+// Jwt Token Issue
+app.post("/jwt", (req, res) => {
+  const body = req.body;
+  // console.log(body);
+  const token = jwt.sign(body, process.env.ACCESS_TOKEN_SECRET, {
+    expiresIn: "1h",
+  });
+  res.cookie("token", token, {
+    httpOnly: true,
+    secure: true,
+    sameSite: "none",
+  });
+  res.json({ success: true });
+});
+
+app.post("/logout", (req, res) => {
+  const body = req.body;
+  // console.log("logging out user...", body);
+  res.clearCookie("token", { maxAge: 0 });
+  res.json({ success: true });
+});
+
+// Job Table
+
 // get all jobs or some jobs of specific user
 app.get("/jobs", async (req, res) => {
   try {
     const { id } = req.query;
+    // console.log(req.cookies);
     // console.log(id);
+
+    console.log("Owner info", req.user);
+
     // all users all job data
     if (!id) {
       const Jobs = await Job.find({}).sort({ jobPostingDate: -1 });
       res.send(Jobs);
     } else {
       //one users all data
-      const Jobs = await Job.find({ authorId: id }).sort({
-        jobPostingDate: -1,
+
+      // varify token
+      const token = req.cookies.token;
+      if (!token) {
+        return res.status(401).send({ message: "Unauthorized Access" });
+      }
+      jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+        if (err) {
+          return res.status(401).send({ message: "Unauthorized Access" });
+        }
+        req.user = decoded;
+        // verify user (my data or else data)
+        if (id !== req.user.id) {
+          return res.status(403).send({ message: "Forbidden Access" });
+        }
+        Job.find({ authorId: id })
+          .sort({
+            jobPostingDate: -1,
+          })
+          .then((Jobs) => {
+            res.send(Jobs);
+          })
+          .catch((e) => {
+            res.send(e);
+          });
       });
-      res.send(Jobs);
     }
   } catch (error) {
     res.send(error);
@@ -102,6 +176,7 @@ app.delete("/jobs/:id", async (req, res) => {
   }
 });
 
+// Application Table
 // Application create route
 app.post("/applications", async (req, res) => {
   /*
@@ -151,16 +226,21 @@ app.post("/applications", async (req, res) => {
   }
 });
 
-app.get("/applications", async (req, res) => {
+// re-write this route for future bcz all application cant be protected here we did it
+app.get("/applications", varifyToken, async (req, res) => {
   try {
     const { email } = req.query;
     // all users all Application data
+    // should not verify it but done it
     if (!email) {
       const jobApplications = await JobApplication.find({}).sort({
         createdAt: -1,
       });
       res.send(jobApplications);
     } else {
+      if (req.user.email !== email) {
+        return res.status(403).send({ message: "Forbidden Access" });
+      }
       let arr = [];
       const jobs = await Job.find({}).populate("applicants");
       for (let job of jobs) {
