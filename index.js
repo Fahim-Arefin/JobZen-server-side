@@ -28,6 +28,10 @@ mongoose
 app.use(
   cors({
     origin: ["http://localhost:5173"],
+    // origin: [
+    //   "https://jobzen-45cf0.web.app",
+    //   "https://jobzen-45cf0.firebaseapp.com",
+    // ],
     credentials: true,
   })
 );
