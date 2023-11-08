@@ -10,6 +10,7 @@ const util = require("./util/util");
 
 const jwt = require("jsonwebtoken");
 const cookieParser = require("cookie-parser");
+const { buildMail, sendMail } = require("./util/sendmail");
 
 //connection with mongoose
 mongoose
@@ -217,7 +218,24 @@ app.post("/applications", async (req, res) => {
 
         // save the job
         const jobData = await job.save();
-        res.send(jobData);
+        // res.send(jobData);
+
+        // send mail
+        let to = body.applicantEmail;
+        let from = "sh409925@gmail.com";
+        let subject = "Do not reply this automated mail";
+        let html = `<b>Hello ${body.applicantName}</b><br>
+                            Your job application has been successfully recieved`;
+
+        const msg = buildMail(to, from, subject, html);
+        const isMailSendToStudent = await sendMail(msg);
+        console.log(isMailSendToStudent);
+
+        // if (isMailSendToStudent) {
+        //   res.send({ info: "Success mail send to your email" });
+        // } else {
+        //   res.send({ info: "cant send mail" });
+        // }
       }
     }
   } catch (error) {
