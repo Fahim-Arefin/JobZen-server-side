@@ -94,7 +94,7 @@ app.get("/jobs", async (req, res) => {
     // console.log(req.cookies);
     // console.log(id);
 
-    console.log("Owner info", req.user);
+    // console.log("Owner info", req.user);
 
     // all users all job data
     if (!id) {
@@ -279,4 +279,8 @@ app.get("/applications", varifyToken, async (req, res) => {
   } catch (error) {
     res.send(error);
   }
+});
+
+app.get("/testing", (req, res) => {
+  res.send("testing.....");
 });
