@@ -7,11 +7,17 @@ const port = process.env.PORT || 5000;
 const Job = require("./model/jobs");
 const JobApplication = require("./model/JobApplication");
 const util = require("./util/util");
+const path = require("path");
 
 const jwt = require("jsonwebtoken");
 const cookieParser = require("cookie-parser");
 
+const multer = require("multer");
+const { CloudinaryStorage } = require("multer-storage-cloudinary");
+const cloudinary = require("cloudinary").v2;
+
 //connection with mongoose
+// -------------------------------------------------------------------------------------------------------------------
 mongoose
   .connect(
     `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.8wioxsd.mongodb.net/JobZen?retryWrites=true&w=majority`
@@ -24,7 +30,11 @@ mongoose
     console.log(e);
   });
 
+// -------------------------------------------------------------------------------------------------------------------
+
 //middleware
+// -------------------------------------------------------------------------------------------------------------------
+
 app.use(
   cors({
     origin: ["http://localhost:5173"],
@@ -53,12 +63,49 @@ const varifyToken = (req, res, next) => {
   });
 };
 
+// Configure Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+// Configure Multer to use Cloudinary as storage
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: "pdfs", // Set your desired folder name in Cloudinary
+    allowed_formats: ["pdf"],
+    // transformation: [{ width: 500, height: 500, crop: "limit" }],
+  },
+});
+const fileFilter = (req, file, cb) => {
+  if (file.mimetype === "application/pdf") {
+    cb(null, true);
+  } else {
+    cb(null, false);
+  }
+};
+// multer middleware
+const upload = multer({
+  storage: storage,
+  fileFilter: fileFilter,
+  limits: {
+    fileSize: 1024 * 1024 * 5,
+  },
+});
+
+// -------------------------------------------------------------------------------------------------------------------
+
 //server
+// -------------------------------------------------------------------------------------------------------------------
 app.listen(port, () => {
   console.log(`server is running on port ${port}`);
 });
+// -------------------------------------------------------------------------------------------------------------------
 
 // routes
+// -------------------------------------------------------------------------------------------------------------------
 app.get("/", (req, res) => {
   res.send("this is homepage");
 });
@@ -86,6 +133,7 @@ app.post("/logout", (req, res) => {
 });
 
 // Job Table
+// ==========================================================
 
 // get all jobs or some jobs of specific user
 app.get("/jobs", async (req, res) => {
@@ -180,9 +228,12 @@ app.delete("/jobs/:id", async (req, res) => {
   }
 });
 
+// ==========================================================
+
 // Application Table
+// ==========================================================
 // Application create route
-app.post("/applications", async (req, res) => {
+app.post("/applications", upload.single("resume"), async (req, res) => {
   /*
     steps: 
     --------
@@ -195,11 +246,12 @@ app.post("/applications", async (req, res) => {
   */
 
   try {
-    const body = req.body;
+    const { applicantName, applicantEmail, jobId, createdAt } = req.body;
+    const file = req.file?.path;
     const { id } = req.query;
 
     //1. Find the jobs based on jobId given in body
-    const job = await Job.findById(body.jobId);
+    const job = await Job.findById(jobId);
     //2. checks if it is my job or not
     if (job.authorId === id) {
       res.json({ message: "Can't Apply your created job" });
@@ -212,7 +264,14 @@ app.post("/applications", async (req, res) => {
         res.json({ message: "The application deadline has expired." });
       } else {
         // 4.Create the post
-        const Application = new JobApplication(body);
+        const data = {
+          applicantName,
+          applicantEmail,
+          jobId,
+          createdAt,
+          resumeLink: file,
+        };
+        const Application = new JobApplication(data);
         const applicationData = await Application.save();
 
         // 5.push it to the job (only id will be stored)
@@ -280,7 +339,6 @@ app.get("/applications", varifyToken, async (req, res) => {
     res.send(error);
   }
 });
+// ==========================================================
 
-app.get("/testing", (req, res) => {
-  res.send("testing.....");
-});
+// -------------------------------------------------------------------------------------------------------------------
