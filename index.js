@@ -339,6 +339,37 @@ app.get("/applications", varifyToken, async (req, res) => {
     res.send(error);
   }
 });
+
+// get specific job applicants
+app.get("/applications/:id", varifyToken, async (req, res) => {
+  const { id } = req.params;
+  const data = await JobApplication.find({ jobId: id });
+  res.send(data);
+});
+
+// download pdf
+// Express route to download a PDF by ID
+app.get("/downlaod/:id", async (req, res) => {
+  try {
+    const item = await JobApplication.findById(req.params.id);
+    if (!item) {
+      return res.status(404).json({ error: "PDF not found" });
+    }
+
+    // Get the file name from the URL
+    const fileName = path.basename(item.resumeLink);
+
+    // Set the content-disposition header to trigger download
+    res.setHeader("Content-Disposition", `attachment; filename=${fileName}`);
+
+    // Redirect the client to the Cloudinary URL for the file
+    res.redirect(item.resumeLink);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
 // ==========================================================
 
 // -------------------------------------------------------------------------------------------------------------------
