@@ -270,6 +270,8 @@ app.post("/applications", upload.single("resume"), async (req, res) => {
           jobId,
           createdAt,
           resumeLink: file,
+          status: "pending",
+          feedback: "",
         };
         const Application = new JobApplication(data);
         const applicationData = await Application.save();
@@ -306,34 +308,42 @@ app.get("/applications", varifyToken, async (req, res) => {
       if (req.user.email !== email) {
         return res.status(403).send({ message: "Forbidden Access" });
       }
-      let arr = [];
+      let item = [];
       const jobs = await Job.find({}).populate("applicants");
       for (let job of jobs) {
         for (let applicant of job.applicants) {
           if (applicant.applicantEmail === email) {
-            arr.push(job);
+            // arr.push(job);
+            item.push({
+              _id: job._id,
+              salaryRange: job.salaryRange,
+              jobTitle: job.jobTitle,
+              bannerUrl: job.bannerUrl,
+              applicantName: applicant.applicantName,
+              applicantEmail: applicant.applicantEmail,
+              createdAt: applicant.createdAt,
+              status: applicant.status,
+              feedback: applicant.feedback,
+            });
           }
         }
       }
-      console.log(arr);
+      // console.log(arr);
+      // console.log(item);
 
-      // remove dupplicate
+      // // remove dupplicate
+      // // Create a Map to store unique objects based on the "id" property
+      // const uniqueMap = new Map();
+      // item.forEach((obj) => {
+      //   if (!uniqueMap.has(obj._id)) {
+      //     uniqueMap.set(obj._id, obj);
+      //   }
+      // });
 
-      // Create a Map to store unique objects based on the "id" property
-      const uniqueMap = new Map();
-
-      arr.forEach((obj) => {
-        if (!uniqueMap.has(obj._id)) {
-          uniqueMap.set(obj._id, obj);
-        }
-      });
-
-      // Convert the Map values back to an array
-      const uniqueArray = Array.from(uniqueMap.values());
-
-      console.log(uniqueArray);
-
-      res.send(uniqueArray.reverse());
+      // // Convert the Map values back to an array
+      // const uniqueArray = Array.from(uniqueMap.values());
+      // res.send(uniqueArray.reverse());
+      res.send(item.reverse());
     }
   } catch (error) {
     res.send(error);
@@ -367,6 +377,22 @@ app.get("/downlaod/:id", async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// update a application
+app.patch("/applications/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, feedback } = req.body;
+    await JobApplication.findByIdAndUpdate(id, {
+      status,
+      feedback,
+    });
+    res.send({ message: "Successfull Update" });
+  } catch (error) {
+    console.log(error);
+    res.send({ message: "Error Update" });
   }
 });
 

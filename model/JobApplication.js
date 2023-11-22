@@ -18,9 +18,16 @@ const jobApplicationSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  // jobId: { type: mongoose.Schema.Types.ObjectId, ref: "Job" },
   createdAt: {
     type: Date,
     required: true,
+  },
+  status: {
+    type: String,
+  },
+  feedback: {
+    type: String,
   },
 });
 
