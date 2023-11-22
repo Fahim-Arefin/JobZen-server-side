@@ -1,5 +1,6 @@
 const express = require("express");
 const app = express();
+const axios = require("axios");
 const cors = require("cors");
 const mongoose = require("mongoose");
 require("dotenv").config();
@@ -254,14 +255,14 @@ app.post("/applications", upload.single("resume"), async (req, res) => {
     const job = await Job.findById(jobId);
     //2. checks if it is my job or not
     if (job.authorId === id) {
-      res.json({ message: "Can't Apply your created job" });
+      res.json({ message: "Can't apply your own job" });
     } else {
       const isExpired = util.isApplicationDeadlineExpired(
         job.applicationDeadline
       );
       //3. check if deadline is over or not
       if (isExpired) {
-        res.json({ message: "The application deadline has expired." });
+        res.json({ message: "Sorry !! The application deadline has expired." });
       } else {
         // 4.Create the post
         const data = {
@@ -282,9 +283,48 @@ app.post("/applications", upload.single("resume"), async (req, res) => {
 
         // save the job
         const jobData = await job.save();
-        res.send(jobData);
-        // done
-        //
+
+        // Send Mail to applicant
+
+        // Sendinblue API endpoint for sending a transactional email
+        const sendinblueEndpoint = "https://api.sendinblue.com/v3/smtp/email";
+
+        // Sendinblue API request headers
+        const headers = {
+          "Content-Type": "application/json",
+          "api-key": process.env.BREVO_API,
+        };
+
+        // Sendinblue API request body
+
+        // Sendinblue API request body
+        const requestBody = {
+          sender: { email: "fahimarefin57@gmail.com" },
+          to: [{ email: applicantEmail }],
+          subject: "Successfully recieved resume",
+          htmlContent: `<h1> Hello ${applicantName} </h1> <br/> 
+          <p> Your Resume has been recieved! Please wait patiantly for resposne. Keep an eye to portal or email for response </p>`,
+        };
+
+        // Send the email using Sendinblue API
+        axios
+          .post(sendinblueEndpoint, requestBody, {
+            headers: headers,
+          })
+          .then((response) => {
+            console.log("Email sent successfully:", response.data);
+            // res.status(200).json({ message: "Email sent successfully" });
+            res.send(jobData);
+          })
+          .catch((error) => {
+            console.error(
+              "Error sending email:",
+              error.response ? error.response.data : error.message
+            );
+            console.log(error);
+            // res.status(500).json({ error: "Error sending email" });
+            res.send(jobData);
+          });
       }
     }
   } catch (error) {
@@ -384,11 +424,66 @@ app.get("/downlaod/:id", async (req, res) => {
 app.patch("/applications/:id", async (req, res) => {
   try {
     const { id } = req.params;
+    const { email, name, jobName } = req.query;
     const { status, feedback } = req.body;
     await JobApplication.findByIdAndUpdate(id, {
       status,
       feedback,
     });
+
+    // Send Mail to applicant
+
+    // Sendinblue API endpoint for sending a transactional email
+    const sendinblueEndpoint = "https://api.sendinblue.com/v3/smtp/email";
+
+    // Sendinblue API request headers
+    const headers = {
+      "Content-Type": "application/json",
+      "api-key": process.env.BREVO_API,
+    };
+
+    // Sendinblue API request body
+
+    // Sendinblue API request body
+
+    let sub, content;
+    if (status === "accept") {
+      sub = "Congratulation !! Your have been selected";
+      content =
+        "You are selected for the job. Please Check mail for further info";
+    } else {
+      sub = "Unfortunately !! You are rejected for the job";
+      content =
+        "You are rejected !! Please keep working hard and apply next time,";
+    }
+
+    const requestBody = {
+      sender: { email: "fahimarefin57@gmail.com" },
+      to: [{ email }],
+      subject: sub,
+      htmlContent: `<h1> Hello ${name}</h1> <br/> 
+          <h3>You applied for this job ${jobName}</h3> <br/>
+          <p> ${content} </p>`,
+    };
+
+    // Send the email using Sendinblue API
+    axios
+      .post(sendinblueEndpoint, requestBody, {
+        headers: headers,
+      })
+      .then((response) => {
+        console.log("Email sent successfully:", response.data);
+        // res.status(200).json({ message: "Email sent successfully" });
+      })
+      .catch((error) => {
+        console.error(
+          "Error sending email:",
+          error.response ? error.response.data : error.message
+        );
+        console.log(error);
+        // res.status(500).json({ error: "Error sending email" });
+      });
+
     res.send({ message: "Successfull Update" });
   } catch (error) {
     console.log(error);
